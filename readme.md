@@ -1,7 +1,16 @@
 # Nunjucks Starter Kit
 
 ## Requirement
-- Node: [https://nodejs.org/en/download](https://nodejs.org/en/download)
+- Node: [https://nodejs.org/en/download](https://nodejs.org/en/download) 
+
+---
+Use node version 11.xx.xx
+
+### CHECK: `node -v`
+
+If you run node 12.xx.xx or later:
+- run `npm install -g n` to install 'n' to manage node versions
+- run `n 11.15.0` to install and use node version 11.15.0
 
 ### How to start
 1. download & unzip: [https://github.com/wzulfikar/nunjucks-starter-kit/archive/master.zip](https://github.com/wzulfikar/nunjucks-starter-kit/archive/master.zip)
