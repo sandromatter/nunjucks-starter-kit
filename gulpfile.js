@@ -1,56 +1,132 @@
-// gulpfile.js
-const gulp  = require('gulp'),
-    browserSync = require('browser-sync').create(),
-    htmlmin = require('gulp-htmlmin'),
-    nunjucksRender = require('gulp-nunjucks-render'); // importing the plugin
+'use strict';
 
-const PATHS = {
-    output: 'dist',
-    templates: 'src/templates',
-    pages: 'src/pages',
-}
 
-// writing up the gulp nunjucks task
-gulp.task('nunjucks', function() {
-    console.log('Rendering nunjucks files..');
-    return gulp.src(PATHS.pages + '/**/*.+(html|js|css)')
-        .pipe(nunjucksRender({
-          path: [PATHS.templates],
-          watch: true,
-        }))
-        .pipe(gulp.dest(PATHS.output));
+// -----------------------------------------------------------------------------
+// Dependencies
+// -----------------------------------------------------------------------------
+
+var gulp = require('gulp');
+var sass = require('gulp-sass');
+var autoprefixer = require('gulp-autoprefixer');
+var sassdoc = require('sassdoc');
+var browserSync = require('browser-sync').create();
+var nunjucksRender = require('gulp-nunjucks-render');
+var imagemin = require('gulp-imagemin');
+var pngquant = require('imagemin-pngquant');
+var siteOutput = 'bin';
+
+
+// -----------------------------------------------------------------------------
+// Configuration
+// -----------------------------------------------------------------------------
+
+var input = 'obj/src/scss/**/*.scss';
+var inputMain = 'obj/src/scss/style.scss';
+var output = siteOutput + '/css';
+var inputTemplates = 'obj/pages/*.njk';
+var sassOptions = { outputStyle: 'expanded' };
+var autoprefixerOptions = { browsers: ['last 2 versions', '> 5%', 'Firefox ESR'] };
+var sassdocOptions = { dest: siteOutput + '/sassdoc' };
+
+
+// -----------------------------------------------------------------------------
+// Sass compilation
+// -----------------------------------------------------------------------------
+
+gulp.task('sass', function () {
+  return gulp
+    .src(inputMain)
+    .pipe(sass(sassOptions).on('error', sass.logError))
+    .pipe(autoprefixer(autoprefixerOptions))
+    .pipe(gulp.dest(output))
+    .pipe(browserSync.stream());
 });
 
-gulp.task('browserSync', function() {
-    browserSync.init({
-        server: {
-            baseDir: PATHS.output
-        },
-    });
+
+// -----------------------------------------------------------------------------
+// Templating
+// -----------------------------------------------------------------------------
+
+gulp.task('nunjucks', function () {
+  nunjucksRender.nunjucks.configure(['obj/templates/']);
+  // Gets .html and .nunjucks files in pages
+  return gulp.src(inputTemplates)
+    // Renders template with nunjucks
+    .pipe(nunjucksRender())
+    // output files in dist folder
+    .pipe(gulp.dest(siteOutput))
 });
 
-gulp.task('watch', function() {
-    // trigger Nunjucks render when pages or templates changes
-    gulp.watch([PATHS.pages + '/**/*.+(html|js|css)', PATHS.templates + '/**/*.+(html|js|css)'], ['nunjucks'])
-    
-    // reload browsersync when `dist` changes
-    gulp.watch(PATHS.output + '/*').on('change', browserSync.reload);
-});
 
-gulp.task('minify', function() {
-  return gulp.src(PATHS.output + '/*.html')
-    .pipe(htmlmin({
-        collapseWhitespace: true,
-        cssmin: true,
-        jsmin: true,
-        removeOptionalTags: true,
-        removeComments: false
+// -----------------------------------------------------------------------------
+// Imagemin
+// -----------------------------------------------------------------------------
+
+gulp.task('img', function () {
+  return gulp.src('./img/**/*')
+    .pipe(imagemin({
+      progressive: true,
+      svgoPlugins: [{ removeViewBox: false }],
+      use: [pngquant()]
     }))
-    .pipe(gulp.dest(PATHS.output));
+    .pipe(gulp.dest(siteOutput + '/img'));
 });
 
-// run browserSync auto-reload together with nunjucks auto-render
-gulp.task('auto', ['browserSync', 'watch']);
 
-//default task to be run with gulp
-gulp.task('default', ['nunjucks']);
+// -----------------------------------------------------------------------------
+// Fonts
+// -----------------------------------------------------------------------------
+
+// gulp.task('fonts', function() {
+//   return gulp.src(['./fonts/*'])
+//   .pipe(gulp.dest(siteOutput + '/fonts/'));
+// });
+
+
+// -----------------------------------------------------------------------------
+// Sass documentation generation
+// -----------------------------------------------------------------------------
+
+gulp.task('sassdoc', function () {
+  return gulp
+    .src(input)
+    .pipe(sassdoc(sassdocOptions))
+    .resume();
+});
+
+
+// -----------------------------------------------------------------------------
+// Watchers
+// -----------------------------------------------------------------------------
+
+gulp.task('watch', function () {
+  // Watch the sass input folder for change,
+  // and run `sass` task when something happens
+  gulp.watch(input, ['sass']).on('change', function (event) {
+    console.log('File ' + event.path + ' was ' + event.type + ', running tasks...');
+  });
+
+  // Watch nunjuck templates and reload browser if change
+  gulp.watch(inputTemplates, ['nunjucks']).on('change', browserSync.reload);
+
+});
+
+
+// -----------------------------------------------------------------------------
+// Static server
+// -----------------------------------------------------------------------------
+
+gulp.task('browser-sync', function () {
+  browserSync.init({
+    server: {
+      baseDir: siteOutput
+    }
+  });
+});
+
+
+// -----------------------------------------------------------------------------
+// Default task
+// -----------------------------------------------------------------------------
+
+gulp.task('default', ['sass', 'nunjucks', 'img', 'watch', 'browser-sync']);
